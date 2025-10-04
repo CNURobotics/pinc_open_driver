@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+
+# Copyright 2025 Christopher Newport University - CNU Robotics
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+read_servo.py
+Read and display the ST3215/STS register parameters using Dynamixel v1-style packets.
+Dependencies: pyserial
+"""
+
+import serial
+print(serial.__file__)
+print(dir(serial))
+import argparse
+import time
+from collections import OrderedDict
+
+# --- helpers for packet build/parse (Dynamixel v1 style) ---
+READ_INSTRUCTION = 0x02
+WRITE_INSTRUCTION = 0x03
+
+def dx_checksum(packet_bytes):
+    # packet_bytes = [ID, LENGTH, INSTRUCTION, PARAMS...]
+    s = sum(packet_bytes)
+    return (~s) & 0xFF
+
+def build_read_packet(servo_id, addr, length):
+    params = [addr & 0xFF, length & 0xFF]
+    length_field = len(params) + 2  # instruction + params + checksum rule -> LENGTH = Nparams + 2
+    pkt = [0xFF, 0xFF, servo_id & 0xFF, length_field & 0xFF, READ_INSTRUCTION] + params
+    chk = dx_checksum(pkt[2:])  # checksum computed on ID..end
+    pkt.append(chk)
+    return bytes(pkt)
+
+def read_response(ser, timeout=0.2):
+    # read header 0xFF 0xFF
+    # This function assumes the servo replies promptly.
+    start = ser.read(2)
+    if len(start) < 2:
+        return None
+    if start[0] != 0xFF or start[1] != 0xFF:
+        # try resync
+        return None
+    hdr = ser.read(2)  # ID, LENGTH
+    if len(hdr) < 2:
+        return None
+    dev_id = hdr[0]
+    length = hdr[1]
+    rest = ser.read(length)  # includes error, params..., checksum
+    if len(rest) < length:
+        return None
+    error = rest[0]
+    params = rest[1:-1]
+    checksum = rest[-1]
+    # verify checksum
+    chk_calc = (~(dev_id + length + sum(rest[:-1]))) & 0xFF
+    if chk_calc != checksum:
+        raise IOError(f'Checksum mismatch: recv {checksum:02X} calc {chk_calc:02X}')
+    return {'id': dev_id, 'error': error, 'params': params}
+
+# --- register map (address, length, name, signed?, unit/conv lambda, description) ---
+REGS = OrderedDict([
+    (0x00, (1, "FW_major", False, None, "Firmware major version")),
+    (0x01, (1, "FW_minor", False, None, "Firmware minor version")),
+    (0x03, (1, "Servo_major", False, None, "Servo major version")),
+    (0x04, (1, "Servo_minor", False, None, "Servo minor version")),
+    (0x05, (1, "ID", False, None, "Servo ID (EEPROM)")),
+    (0x06, (1, "Baud_idx", False, lambda v: {0:1000000,1:500000,2:250000,3:128000,4:115200,5:76800,6:57600,7:38400}.get(v, v), "Baudrate index (0->1M)")),
+    (0x07, (1, "Return_delay", False, lambda v: f"{v*2} µs", "Return delay time (units of 2µs)")),
+    (0x08, (1, "Resp_status", False, None, "Response status level")),
+    (0x09, (2, "Min_angle", True, None, "Minimum angle limit (steps)")),
+    (0x0B, (2, "Max_angle", True, None, "Maximum angle limit (steps)")),
+    (0x0D, (1, "Max_temp", False, lambda v: f"{v} °C", "Maximum operating temperature")),
+    (0x0E, (1, "Max_voltage", False, lambda v: f"{v/10:.1f} V", "Maximum input voltage (0.1V units)")),
+    (0x0F, (1, "Min_voltage", False, lambda v: f"{v/10:.1f} V", "Minimum input voltage (0.1V units)")),
+    (0x10, (2, "Max_torque", False, lambda v: f"{v/10:.1f}% (raw={v})", "Maximum torque (1000 -> 100%)")),
+    (0x12, (1, "Phase_flags", False, None, "Phase / special function byte")),
+    (0x13, (1, "Protection_mask", False, None, "Protection enable bitmask")),
+    (0x14, (1, "LED_alarm_mask", False, None, "LED alarm conditions bitmask")),
+    (0x15, (1, "PID_P", False, None, "Position loop P")),
+    (0x16, (1, "PID_D", False, None, "Position loop D")),
+    (0x17, (1, "PID_I", False, None, "Position loop I")),
+    (0x18, (2, "Min_start_force", False, None, "Minimum starting force (raw)")),
+    (0x1A, (1, "CW_deadzone", False, None, "Clockwise deadzone (steps)")),
+    (0x1B, (1, "CCW_deadzone", False, None, "Counterclockwise deadzone (steps)")),
+    (0x1C, (2, "Protection_current", False, lambda v: f"{v*6.5:.1f} mA", "Protection current (units ~6.5mA)")),
+    (0x1E, (1, "Angle_resolution", False, None, "Angle resolution factor")),
+    (0x1F, (2, "Position_correction", True, None, "Zero position correction (signed steps)")),
+    (0x21, (1, "Op_mode", False, lambda v: {0:"pos",1:"speed_closed",2:"pwm_open",3:"step"}.get(v, v), "Operating mode")),
+    (0x22, (1, "Protect_torque", False, None, "Protection torque (%)")),
+    (0x23, (1, "Protect_time", False, lambda v: f"{v*10} ms", "Protection time (units 10ms)")),
+    (0x24, (1, "Overload_torque", False, None, "Overload torque threshold (%)")),
+    (0x25, (1, "Speed_P", False, None, "Speed closed-loop P")),
+    (0x26, (1, "Overcurrent_time", False, lambda v: f"{v*10} ms", "Overcurrent protection time")),
+    (0x27, (1, "Speed_I", False, None, "Velocity closed-loop I")),
+    (0x28, (1, "Torque_enable", False, None, "Torque switch (0 off,1 on,128 set center)")),
+    (0x29, (1, "Acceleration", False, None, "Acceleration (step/s^2)")),
+    (0x2A, (2, "Target_pos", True, None, "Target position (signed 16-bit)")),
+    (0x2C, (2, "Goal time", False, None, "Goal time / PWM param")),
+    (0x2E, (2, "Goal speed", False, None, "Goal speed (steps/s)")),
+    (0x30, (2, "Torque_limit", False, None, "Runtime torque limit (raw)")),
+    (0x37, (1, "Eeprom_lock", False, None, "EEPROM lock flag (0 unlock,1 lock)")),
+    (0x38, (2, "Present_pos", True, None, "Present position (read-only)")),
+    (0x3A, (2, "Present_speed", False, None, "Present speed (read-only)")),
+    (0x3C, (2, "Present_load", False, None, "Present load / PWM duty (read-only)")),
+    (0x3E, (1, "Present_voltage", False, lambda v: f"{v/10:.1f} V", "Present voltage (0.1V units)")),
+    (0x3F, (1, "Present_temp", False, lambda v: f"{v} °C", "Present temperature (°C)")),
+    (0x40, (1, "Async_write_flag", False, None, "Async write pending flag")),
+    (0x41, (1, "Servo_status", False, None, "Servo status bitmask (warnings/errors)")),
+    (0x42, (1, "Move_flag", False, None, "1=moving, 0=stopped")),
+    (0x45, (2, "Measured_current", False, lambda v: f"{v*6.5:.1f} mA", "Measured current (LSB ≈ 6.5 mA)")),
+    (0x4d, (1, "vfk", False, lambda v: f"{v}", "vfk")),
+    (0x50, (1, "vmin", False, lambda v: f"{v}", "vmin")),
+    (0x53, (1, "vk", False, lambda v: f"{v}", "vk")),
+    (0x54, (1, "max vel", False, lambda v: f"{v}", "Max vel")),
+    (0x55, (1, "max acc", False, lambda v: f"{v}", "Max acc")),
+])
+
+def read_reg(ser, sid, addr, length, timeout=0.2, tries=2):
+    pkt = build_read_packet(sid, addr, length)
+    for attempt in range(tries):
+        ser.write(pkt)
+        ser.flush()
+        time.sleep(0.01)
+        resp = read_response(ser, timeout=timeout)
+        if resp is None:
+            # try again
+            continue
+        if resp['id'] != sid:
+            # unexpected id
+            continue
+        if resp['error'] != 0:
+            raise IOError(f"Servo returned error code {resp['error']:02X} for read {addr:02X}")
+        return resp['params']
+    raise IOError(f"No response reading addr 0x{addr:02X}")
+
+def parse_value(raw_bytes, signed=False):
+    if len(raw_bytes) == 0:
+        return None
+    if signed:
+        return int.from_bytes(bytes(raw_bytes), byteorder='little', signed=True)
+    else:
+        return int.from_bytes(bytes(raw_bytes), byteorder='little', signed=False)
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument('--port', default='/dev/ttyACM0')
+    p.add_argument('--baud', type=int, default=1000000, help='baud rate (default 1000000)')
+    p.add_argument('--id', type=int, default=6, help='servo id (default 6)')
+    args = p.parse_args()
+
+    ser = serial.Serial(args.port, baudrate=args.baud, timeout=0.2)
+
+    print(f"Reading ST3215 parameters from {args.port} @ {args.baud}, id={args.id}")
+    results = {}
+    for addr, meta in REGS.items():
+        length, name, signed, conv, desc = meta
+        try:
+            raw = read_reg(ser, args.id, addr, length)
+        except Exception as e:
+            print(f"  0x{addr:02X} {name:20s} ERROR: {e}")
+            results[name] = None
+            continue
+        # raw is a list of parameter bytes (little endian)
+        val = parse_value(raw, signed=signed)
+        disp = val
+        if conv:
+            try:
+                disp = conv(val)
+            except Exception:
+                disp = val
+        # extra heuristic for position: display degrees (if value in single-turn range)
+        if name in ("Present_pos", "Target_pos", "Min_angle", "Max_angle", "Position_correction"):
+            # ST3215 commonly uses 4096 steps/rev; only show degrees when in typical single-turn range
+            if isinstance(val, int) and abs(val) <= 0x0FFF:
+                deg = val * 360.0 / 4096.0
+                disp = f"{val} steps ({deg:.2f}°)"
+        print(f"  0x{addr:02X} {name:20s} = {disp}    -- {desc}")
+        results[name] = val
+
+    ser.close()
+
+if __name__ == '__main__':
+    main()

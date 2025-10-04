@@ -1,0 +1,9 @@
+<library path="pinc_open_driver">
+  <class name="pinc_open_driver/PincOpenDriver"
+         type="pinc_open_driver::PincOpenDriver"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Hardware Interface for Pinc Open Gripper 
+    </description>
+  </class>
+</library>

@@ -1,0 +1,282 @@
+#!/usr/bin/env python3
+
+# Copyright 2025 Christopher Newport University - CNU Robotics
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from datetime import datetime
+from math import pi
+import os
+from pathlib import Path
+
+from builtin_interfaces.msg import Time
+
+import rclpy
+from rclpy.node import Node
+from action_msgs.msg import GoalStatusArray
+from control_msgs.msg import JointTrajectoryControllerState
+
+from colorama import init, Fore, Style
+init(autoreset=True)
+
+# This presumes state message has joints in order!
+joint_positiion_limits = [(-2.4, 0.0)]
+
+joint_vel_limits = [5., 5.]
+
+STATUS_MAP = {
+    0: "UNKNOWN",
+    1: "PENDING",
+    2: "ACTIVE",
+    3: "PREEMPTED",
+    4: "SUCCEEDED",
+    5: "ABORTED",
+    6: "REJECTED",
+    7: "PREEMPTING",
+    8: "RECALLING",
+    9: "RECALLED",
+    10: "LOST"
+}
+
+JNT_PREFIX = "m1n6s200_"
+ERR_LIMIT_GREEN = 0.001
+ERR_LIMIT_ORANGE = 0.005
+VEL_THRESH_BLUE = 0.001
+VEL_THRESH_GREEN = 0.09
+VEL_THRESH_LIGHTRED = 0.2
+
+def color_pos_error(val: float, jnt:int) -> str:
+    abs_val = abs(val)
+    if abs_val < ERR_LIMIT_GREEN:
+        return Fore.GREEN
+    elif abs_val < ERR_LIMIT_ORANGE:
+        return Fore.LIGHTRED_EX  # approximate dark orangered
+    else:
+        return Fore.RED
+
+def color_pos_limits(val: float, jnt:int) -> str:
+
+    low_limit, high_limit = joint_positiion_limits[jnt]
+    diff_range = high_limit - low_limit
+    diff_low = (val - low_limit)/diff_range
+    diff_high = (high_limit - val)/diff_range
+    if diff_low < 0.0 or diff_high < 0.0:
+        return Fore.RED
+    elif diff_low < 0.01 or diff_high < 0.01:
+        return Fore.LIGHTRED_EX  # approximate dark orangered
+    else:
+        return Fore.GREEN
+
+def color_vel_mag(val: float, jnt:int) -> str:
+    abs_val = abs(val)
+    if abs_val < VEL_THRESH_BLUE:
+        return Fore.BLUE
+    elif abs_val < VEL_THRESH_GREEN:
+        return Fore.GREEN
+    elif abs_val < VEL_THRESH_LIGHTRED:
+        return Fore.LIGHTRED_EX
+    else:
+        return Fore.RED
+
+def color_vel_limits(val: float, jnt:int) -> str:
+
+    abs_val = abs(val)/joint_vel_limits[jnt]
+
+    if abs_val < 0.95:
+        return Fore.GREEN
+    elif abs_val < 0.99999:
+        return Fore.LIGHTRED_EX
+    else:
+        return Fore.RED
+
+def fmt_colored(values, count, width=10, fmt_str="{: >10.4f}", color_fn=None):
+    result = []
+    for i in range(count):
+        if i < len(values):
+            val = values[i]
+            color = color_fn(val, i) if color_fn else ""
+            result.append(color + fmt_str.format(val) + Style.RESET_ALL)
+        else:
+            result.append(" " * width)
+    return " ".join(result)
+
+def fmt_sci_colored(values, count, width=10, color_fn=None):
+    return fmt_colored(values, count, width, "{: >10.2e}", color_fn)
+
+def format_stamp_hhmmss(stamp):
+    """
+    Format a ROS 2 timestamp as HH:MM:SS.ssssss, ignoring larger units like days.
+    """
+    total_sec = stamp.sec + stamp.nanosec * 1e-9
+    hours = int((total_sec // 3600) % 24)
+    minutes = int(total_sec // 60) % 60
+    seconds = total_sec % 60
+    return f"{hours:02d}:{minutes:02d}:{seconds:09.6f}"
+
+class ControllerMonitor(Node):
+    def __init__(self):
+        super().__init__('controller_monitor')
+        self.create_subscription(
+            GoalStatusArray,
+            'pinc_open_driver_trajectory_controller/follow_joint_trajectory/_action/status',
+            self.status_callback,
+            10
+        )
+        self.create_subscription(
+            JointTrajectoryControllerState,
+            'pinc_open_driver_trajectory_controller/controller_state',
+            self.state_callback,
+            10
+        )
+        self.last_status = None
+        self.last_code = None
+        self.last_logged_status = None
+        self.last_state_msg = None
+        self.state_msg_buffer = 10*[None]
+        self.state_msg_buffer_index = 0
+
+        workspace_root = os.environ.get("WORKSPACE_ROOT")
+        if not workspace_root:
+            raise EnvironmentError("WORKSPACE_ROOT environment variable is not set.")
+        log_dir = Path(workspace_root) / "log" / "pinc_logs"
+        print(f"Full path to logs directory '{log_dir}' ...")
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        log_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        log_dir = log_dir / f"pinc_open_driver_monitor_{log_time}.log"
+        self.log_file = open(log_dir, "w")
+        print(f"Using '{log_dir}' for logging ...", flush=True)
+
+        self.last_logged_status = None
+        self.last_msg_stamp = None
+        self.log_counter = 0
+
+    def log_to_file(self, stamp, msg: str):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.log_file.write(f"[{format_stamp_hhmmss(stamp)}] {msg}\n")
+        self.log_file.flush()
+
+
+    def status_callback(self, msg: GoalStatusArray):
+        if not msg.status_list:
+            return
+
+        for status in msg.status_list:
+            self.last_status = status
+            self.print_status()
+            print()
+
+    def print_status(self, force=False):
+        if self.last_status is None:
+            return
+
+        self.last_code = self.last_status.status
+        meaning = STATUS_MAP.get(self.last_code, f"UNKNOWN ({self.last_code})")
+        color = {
+            1: Fore.CYAN,
+            2: Fore.BLUE,
+            4: Fore.GREEN,
+            5: Fore.RED,
+            6: Fore.RED,
+        }.get(self.last_code, Fore.MAGENTA)
+
+        print(f"{Fore.YELLOW + Style.BRIGHT} [Goal Status]"
+              f"{color} • {meaning:10s} [{self.last_code}]", end="")
+
+        if self.last_logged_status is None or self.last_code != self.last_logged_status.status:
+            stamp = self.last_status.goal_info.stamp
+            if self.last_state_msg is not None and rclpy.time.Time.from_msg(self.last_state_msg.header.stamp) > rclpy.time.Time.from_msg(stamp):
+                stamp = self.last_state_msg.header.stamp  # Use latest time stamp as goal stamp is based on when sent
+
+            self.log_to_file(stamp, f"Status changed to {STATUS_MAP.get(self.last_code, 'UNKNOWN')} [{self.last_code}]")
+            self.last_logged_status = self.last_status
+
+    def log_state_msg(self, msg, n):
+        self.log_to_file(msg.header.stamp, "  Pos Ref: " + fmt_colored(msg.reference.positions, n, color_fn=None))
+        self.log_to_file(msg.header.stamp, "  Pos Act: " + fmt_colored(msg.feedback.positions, n, color_fn=None))
+        self.log_to_file(msg.header.stamp, "  Pos Err: " + fmt_sci_colored(msg.error.positions, n, color_fn=None))
+        self.log_to_file(msg.header.stamp, "  Vel Ref: " + fmt_colored(msg.reference.velocities, n, color_fn=None))
+        self.log_to_file(msg.header.stamp, "  Vel Act: " + fmt_colored(msg.feedback.velocities, n, color_fn=None))
+        self.log_to_file(msg.header.stamp, "  Vel Out: " + fmt_sci_colored(msg.output.velocities, n, color_fn=None))
+
+    def state_callback(self, msg: JointTrajectoryControllerState):
+        self.last_state_msg = msg
+
+        joint_names = msg.joint_names
+        n = len(joint_names)
+
+        self.print_status()
+        print(Fore.WHITE + Style.BRIGHT + f" [Controller State] {format_stamp_hhmmss(msg.header.stamp)}")
+
+        print("  Joints:  " + " ".join(f"{name.replace(JNT_PREFIX,''):>10s}" for name in joint_names))
+
+        print(Fore.GREEN + "  Pos Ref: " + fmt_colored(msg.reference.positions, n, color_fn=lambda x, y: Fore.GREEN ))
+        print(Fore.GREEN + "  Pos Act: " + fmt_colored(msg.feedback.positions, n, color_fn=color_pos_limits))
+        print(Fore.GREEN + "  Pos Err: " + fmt_sci_colored(msg.error.positions, n, color_fn=color_pos_error))
+
+        print(Fore.MAGENTA + "  Vel Ref: " + fmt_colored(msg.reference.velocities, n, color_fn=color_vel_mag))
+        print(Fore.MAGENTA + "  Vel Act: " + fmt_colored(msg.feedback.velocities, n, color_fn=color_vel_limits))
+        print(Fore.MAGENTA + "  Vel Out: " + fmt_colored(msg.output.velocities, n, color_fn=color_vel_mag))
+
+        print(Style.DIM + "-" * (12 + n * 11))
+        high_errors = []
+        high_velocities = set()
+        for i in range(n):
+            if i < len(msg.error.positions) and abs(msg.error.positions[i]) > ERR_LIMIT_ORANGE:
+                high_errors.append(i)
+
+            if i < len(msg.reference.velocities) and abs(msg.reference.velocities[i]) > VEL_THRESH_GREEN:
+                high_velocities.add(i)
+            if i < len(msg.feedback.velocities) and abs(msg.feedback.velocities[i]) > VEL_THRESH_GREEN:
+                high_velocities.add(i)
+
+        if len(high_errors) > 0 or len(high_velocities) > 0 or self.log_counter > 0 or self.last_code == 2:
+            # Log if execessive errors or controller has active goal id
+            if self.log_counter == 0:
+                # update with stored buffer
+                for i in range(len(self.state_msg_buffer)):
+                    ndx = (self.state_msg_buffer_index + i) % len(self.state_msg_buffer)  # oldest one first
+                    if self.state_msg_buffer[ndx] is not None:
+                        self.log_state_msg(self.state_msg_buffer[ndx], n)
+
+            self.log_to_file(msg.header.stamp, f"Status is {STATUS_MAP.get(self.last_code, 'UNKNOWN')} [{self.last_code}]")
+            self.log_to_file(msg.header.stamp, f"High position errors on joints {high_errors}")
+            self.log_to_file(msg.header.stamp, f"High velocities      on joints {high_velocities}")
+            self.log_state_msg(msg, n)
+            self.log_to_file(msg.header.stamp, 30*"=")
+            if len(high_errors) > 0 or len(high_velocities) > 0:
+                self.log_counter = 10  # force us to log some steps after last error
+            elif self.log_counter > 0:
+                self.log_counter = self.log_counter - 1
+
+        self.state_msg_buffer[self.state_msg_buffer_index] = msg
+        self.state_msg_buffer_index = (self.state_msg_buffer_index + 1) % len(self.state_msg_buffer)
+
+def main():
+    rclpy.init()
+    node = ControllerMonitor()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        print(Fore.YELLOW + "\nShutting down controller monitor.")
+    finally:
+        print("Closing log file ...")
+        node.log_file.close()
+        try:
+            rclpy.shutdown()
+        except:
+            pass
+        print("done!")
+
+if __name__ == '__main__':
+    main()

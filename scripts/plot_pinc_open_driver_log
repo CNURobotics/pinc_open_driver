@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+
+# Copyright 2025 Christopher Newport University - CNU Robotics
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import re
+import sys
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+import numpy as np
+import os
+from pathlib import Path
+
+from collections import defaultdict
+from datetime import datetime
+
+color_patches = {
+    "ACTIVE": "#cce6ff",     # stronger light blue
+    "SUCCEEDED": "#b3ffb3",  # mint green
+    "ABORTED": "#ffcccc",    # soft red
+    "REJECTED": "#fff0b3",   # light orange-yellow
+}
+
+# Constants
+NUM_JOINTS = 1
+JOINT_LABELS = ['gripper']
+
+# Compile regexes
+timestamp_re = re.compile(r"\[(\d\d):(\d\d):(\d\d\.\d+)]")
+data_re = re.compile(r"\s+([-+]?\d+\.\d+(?:e[-+]\d+)?|\s{10})")
+
+# Data storage
+data = {
+    "time": [],
+    "pos_ref": [[] for _ in range(NUM_JOINTS)],
+    "pos_act": [[] for _ in range(NUM_JOINTS)],
+    "pos_err": [[] for _ in range(NUM_JOINTS)],
+    "vel_ref": [[] for _ in range(NUM_JOINTS)],
+    "vel_act": [[] for _ in range(NUM_JOINTS)],
+    "vel_out": [[] for _ in range(NUM_JOINTS)],
+}
+
+status_changes = []  # (time_in_sec, "STATUS")
+status_blocks = []   # (start_time, end_time, "STATUS")
+current_block_status = None
+current_block_start = 0.0
+
+# Helper: parse a line of joint values
+def parse_line(line):
+    return [float(x) if x.strip() else None for x in data_re.findall(line)]
+
+# Main
+def parse_log(filename):
+    global current_block_status, current_block_start
+
+    t0 = None
+    current_t = None
+    total_sec = None
+    with open(filename, 'r') as f:
+        for line in f:
+            ts_match = timestamp_re.match(line)
+            if ts_match:
+                h, m, s = ts_match.groups()
+                total_sec = int(h) * 3600 + int(m) * 60 + float(s)
+                if t0 is None:
+                    t0 = total_sec
+                current_t = total_sec - t0
+                # print(f"{current_t} {total_sec} {t0}")
+            else:
+                print(f"unknown time stamp ({ts_match}) <{line}>")
+
+            if "Pos Ref:" in line:
+                values = parse_line(line)
+                for i in range(NUM_JOINTS):
+                    data["pos_ref"][i].append(values[i])
+                data["time"].append(current_t)
+            elif "Pos Act:" in line:
+                values = parse_line(line)
+                for i in range(NUM_JOINTS):
+                    data["pos_act"][i].append(values[i])
+            elif "Pos Err:" in line:
+                values = parse_line(line)
+                for i in range(NUM_JOINTS):
+                    data["pos_err"][i].append(values[i])
+            elif "Vel Ref:" in line:
+                values = parse_line(line)
+                for i in range(NUM_JOINTS):
+                    data["vel_ref"][i].append(values[i])
+            elif "Vel Act:" in line:
+                values = parse_line(line)
+                for i in range(NUM_JOINTS):
+                    data["vel_act"][i].append(values[i])
+            elif "Vel Out:" in line:
+                values = parse_line(line)
+                if len(values) == 1 and values[0] is None:
+                    continue
+                assert len(values) in (0, NUM_JOINTS), f"Mis-match of data for Vel Out : {values}"
+                for i in range(NUM_JOINTS):
+                    data["vel_out"][i].append(values[i])
+
+            if "Status changed to" in line:
+                match = re.search(r"Status changed to (\w+)", line)
+                if match:
+                    status = match.group(1)
+                    status_changes.append((current_t, status))
+                    if current_block_status != status:
+                        print(f"status changed from {current_block_status} to {status} at {current_t} ({current_t} {total_sec} {t0})")
+                        status_blocks.append((current_block_start, current_t, current_block_status))
+                        current_block_status = status
+                        current_block_start = current_t
+
+            elif "Status is" in line:
+                match = re.search(r"Status is (\w+)", line)
+                if match:
+                    status = match.group(1)
+                    if current_block_status != status:
+                        print(f"status changed from {current_block_status} to {status} at {current_t} ({total_sec} {t0})")
+                        status_blocks.append((current_block_start, current_t, current_block_status))
+                        current_block_status = status
+                        current_block_start = current_t
+
+        if current_block_status:
+            status_blocks.append((current_block_start, data["time"][-1], current_block_status))
+
+def plot_data():
+    fig, axes = plt.subplots(NUM_JOINTS, 2, figsize=(14, 12), sharex=True)
+
+    if NUM_JOINTS == 1:
+        axes = [axes]
+
+    print(f"axes={axes}")
+
+    fig.suptitle("Gripper Joint Trajectory Controller Log")
+
+    # Make sure plots are monotonic
+    t = data["time"]
+    sorted_indices = [j for j, _ in sorted(enumerate(t), key=lambda x: x[1])]
+    data["time"] = [t[j] for j in sorted_indices]
+    t = data["time"]
+
+    for key, values_by_joint in data.items():
+        if key == 'time':
+            continue
+        for jnt in range(NUM_JOINTS):
+            if len(values_by_joint[jnt]) == len(t):
+                data[key][jnt] = [values_by_joint[jnt][j] for j in sorted_indices]
+
+    for i in range(NUM_JOINTS):
+
+        # Position
+        axes[i][0].plot(t, data["pos_ref"][i], label='Ref', linestyle='--')
+        axes[i][0].plot(t, data["pos_act"][i], label='Act')
+        # axes[i][0].plot(t, data["pos_err"][i], label='Err')
+        axes[i][0].set_ylabel(f'{JOINT_LABELS[i]} radians')
+        axes[i][0].legend()
+        axes[i][0].set_title(f"Position {JOINT_LABELS[i]} (radians)")
+
+        # Right axis for scaled error
+        ax2 = axes[i][0].twinx()
+        scaled_err = np.array(data["pos_err"][i])
+        t_err = np.array(t)
+        ax2.plot(t, scaled_err, label='Err', color='red', linestyle='-')
+        clip_bounds = (-0.05, 0.05)
+        ax2.set_ylim(clip_bounds)
+        ax2.set_ylabel("Err (radians)", color='red')
+        ax2.axhline(0, color='red', linewidth=0.5, linestyle='--', alpha=0.7)
+        ax2.tick_params(axis='y', labelcolor='red')
+        ax2.plot(t_err[np.abs(scaled_err) > clip_bounds[1]], np.clip(scaled_err[np.abs(scaled_err) > clip_bounds[1]], *clip_bounds), 'r.', linewidth=2)
+
+        # Velocity
+        axes[i][1].plot(t, data["vel_ref"][i], label='Ref', linestyle='--')
+        axes[i][1].plot(t, data["vel_act"][i], label='Act')
+        if len(data["vel_out"][i]) == len(t):
+            axes[i][1].plot(t, data["vel_out"][i], label='Out')
+        else:
+            print(f"No vel out for {i} - {len(data['vel_out'])} {len(t)}")
+
+        axes[i][1].legend()
+        axes[i][1].set_title(f"Velocity {JOINT_LABELS[i]} (rad/sec)")
+
+        for start, end, status in status_blocks:
+            color = color_patches.get(status, "#f0f0f0")
+            axes[i][0].axvspan(start, end, color=color, alpha=0.3)
+            axes[i][1].axvspan(start, end, color=color, alpha=0.3)
+
+        # Add vertical lines for explicit status changes
+        for ts, status in status_changes:
+            axes[i][0].axvline(x=ts, color="black", linestyle="--", linewidth=0.5)
+            axes[i][1].axvline(x=ts, color="black", linestyle="--", linewidth=0.5)
+
+            axes[-1][0].set_xlabel("Time [s]")
+            axes[-1][1].set_xlabel("Time [s]")
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.97])
+    legend_patches = []
+    for lbl, clr in color_patches.items():
+        legend_patches.append(Patch(color=clr, label=lbl))
+
+    fig.legend(handles=legend_patches, loc='lower center', ncol=4)
+
+    plt.show()
+
+def get_last_log_file():
+    workspace_root = os.environ.get("WORKSPACE_ROOT")
+    if not workspace_root:
+        raise EnvironmentError("WORKSPACE_ROOT environment variable is not set.")
+    log_dir = Path(workspace_root) / "log" / "pinc_logs"
+    log_files = list(log_dir.glob("pinc_open_driver_monitor_*.log"))
+    timestamped_files = []
+    for file in log_files:
+        match = re.search(r"pinc_open_driver_monitor_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})\.log", file.name)
+        if match:
+            try:
+                timestamp = datetime.strptime(match.group(1), "%Y-%m-%d_%H-%M-%S")
+                timestamped_files.append((timestamp, file))
+            except ValueError:
+                continue  # Skip files with invalid timestamp formats
+
+    if not timestamped_files:
+        print(f"No valid log files with timestamp found in '{log_dir}'!")
+        return None
+    else:
+        # Sort by timestamp
+        latest_log_file = max(timestamped_files, key=lambda x: x[0])[1]
+        print(f"Latest log file: {latest_log_file}")
+        return latest_log_file
+
+if __name__ == "__main__":
+    fpath = None
+    if len(sys.argv) < 2:
+        fpath = get_last_log_file()
+        if fpath is None:
+            print("Usage: plot_pinc_controller_log <log_file>")
+            sys.exit(1)
+    else:
+        fpath = sys.arg[1]
+
+    parse_log(fpath)
+    plot_data()
