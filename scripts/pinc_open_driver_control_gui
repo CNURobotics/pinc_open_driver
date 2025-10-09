@@ -15,6 +15,8 @@
 # limitations under the License.
 
 from math import pi
+import sys
+
 from PyQt5.QtWidgets import QApplication, QFrame, QLabel, QProgressBar, QPushButton, QSlider, QHBoxLayout, QVBoxLayout, QWidget
 from PyQt5.QtCore import QObject, Qt, QTimer, pyqtSignal
 import threading
@@ -36,13 +38,14 @@ joint_vel_limits = (1.2, )
 OPEN_POSITION = (-2.4,)
 CLOSED_POSITION= (0.05,)
 SQUEEZE_POSITION= (-0.05,)
+JNT_PREFIX = "pinc_open_"
 
 class SignalEmitter(QObject):
     update_status_signal = pyqtSignal(str)
     update_joint_positions_signal = pyqtSignal(list)
 
 class TrajectoryGUI(Node):
-    def __init__(self):
+    def __init__(self, jnt_prefix=JNT_PREFIX):
         super().__init__('slider_gui')
         self.client = ActionClient(self, FollowJointTrajectory, '/pinc_open_driver_trajectory_controller/follow_joint_trajectory')
         self.prior_pos_cmd = None
@@ -57,7 +60,7 @@ class TrajectoryGUI(Node):
             if dt > self.max_time:
                 self.max_time = dt
 
-        self.expected_joint_names = ['gripper']
+        self.expected_joint_names = [jnt_prefix + 'gripper']
         self.get_logger().info(f" Initialize TrajectoryGUI:  max duration = {self.max_time} s")
 
         self.current_joint_states = None
@@ -339,6 +342,13 @@ def create_gui(node):
         label = QLabel(joint_name)
         layout.addWidget(label)
 
+        label_layout = QHBoxLayout()
+        label2 = QLabel("Current Position")
+        label_layout.addStretch(1)
+        label_layout.addWidget(label2)
+        label_layout.addStretch(1)
+        layout.addLayout(label_layout)
+
         # Position indicator bar (shows actual joint position)
         bar = QProgressBar()
         bar.setMinimum(int(joint_positiion_limits[i][0] * 100))
@@ -353,14 +363,30 @@ def create_gui(node):
         slider.setMaximum(int(joint_positiion_limits[i][1]*100))
         slider.setValue(0)
         layout.addWidget(slider)
+
+        label_layout = QHBoxLayout()
+        left_label = QLabel("Fully\nOpen")
+        center_label = QLabel("Target Position\n         to send")
+        right_label = QLabel("   Fully\nClosed")
+
+        label_layout.addWidget(left_label)
+        label_layout.addStretch(1)
+        label_layout.addWidget(center_label)
+        label_layout.addStretch(1)
+        label_layout.addWidget(right_label)
+
+        layout.addLayout(label_layout)
+
+
         node.sliders.append(slider)
+
 
     ## Create timer after sliders are defined
     node.create_timer(0.05, node.update_joint_positions)  # 20 hz
 
     window.setLayout(layout)
-    window.setWindowTitle('Joint Controller')
-    window.resize(600, 400)
+    window.setWindowTitle('Pinc Open Controller')
+    window.adjustSize()
     window.show()
 
     # Add a timer that checks for shutdown every 100ms
@@ -392,21 +418,27 @@ def spinner(node):
     except:
         print("Spinning stopped")
 
-rclpy.init()
-node = TrajectoryGUI()
 
-spin_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
-spin_thread.start()
+if __name__ == '__main__':
+    rclpy.init()
 
-create_gui(node)
-print(f"Finished GUI ...", flush=True)
-try:
-    node.destroy_node()
-    if rclpy.ok():
-        print("Shutting down rclpy ...", flush=True)
-        rclpy.shutdown()
-except:
-    pass
-finally:
-    print("Shutdown complete ...", flush=True)
+    if len(sys.argv) > 2:
+        JNT_PREFIX = sys.argv[2]
+
+    node = TrajectoryGUI(jnt_prefix=JNT_PREFIX)
+
+    spin_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
+    spin_thread.start()
+
+    create_gui(node)
+    print(f"Finished GUI ...", flush=True)
+    try:
+        node.destroy_node()
+        if rclpy.ok():
+            print("Shutting down rclpy ...", flush=True)
+            rclpy.shutdown()
+    except:
+        pass
+    finally:
+        print("Shutdown complete ...", flush=True)
 

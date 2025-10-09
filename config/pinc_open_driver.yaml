@@ -1,4 +1,5 @@
 controller_manager:
+  # Assumes a gripper prefix of 'pinc_open_' in launch file
   ros__parameters:
     update_rate: 50
     use_joint_limits: true
@@ -15,7 +16,7 @@ controller_manager:
 pinc_open_driver_joint_state_broadcaster:
   ros__parameters:
       joints:
-        - gripper
+        - pinc_open_gripper
       interfaces:
         - position
         - velocity
@@ -23,14 +24,14 @@ pinc_open_driver_joint_state_broadcaster:
 pinc_open_driver_position_controller:
   ros__parameters:
       joints:
-        - gripper
+        - pinc_open_gripper
       command_interfaces:
         - position
       state_interfaces:
         - position
         - velocity
       joint_limits:
-        gripper:
+        pinc_open_gripper:
           has_position_limits: true
           min_position: -2.4   # fully open
           max_position: 0.0    # fully closed
@@ -38,7 +39,7 @@ pinc_open_driver_position_controller:
 pinc_open_driver_trajectory_controller:
   ros__parameters:
     joints:
-      - gripper
+      - pinc_open_gripper
     command_interfaces:
       - position
     state_interfaces:
@@ -49,7 +50,7 @@ pinc_open_driver_trajectory_controller:
     constraints:
       goal_time: 1.0
       stopped_velocity_tolerance: 0.05
-      gripper:
+      pinc_open_gripper:
         trajectory: 0.1  # max allowed trajectory error
         goal: 0.1         # max allowed goal error
 

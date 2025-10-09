@@ -1,11 +1,13 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="prefix" default=""/>
 
   <!-- Properties -->
   <xacro:property name="mesh_scale" value="0.001 0.001 0.001"/>
+  <xacro:property name="default_color_rgba" value="0 0 1.0 1.0"/>
 
   <!-- Macros -->
-  <xacro:macro name="visual_mesh" params="mesh_file color_rgba">
+  <xacro:macro name="visual_mesh" params="mesh_file color_rgba:=${default_color_rgba}">
     <visual>
       <geometry>
         <mesh filename="${mesh_file}" scale="${mesh_scale}"/>
@@ -16,28 +18,28 @@
     </visual>
   </xacro:macro>
 
-  <!-- Links -->
-  <link name="base_link">
-    <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/Gripper_Palm_Shell_w_motor_v1.stl" color_rgba="0 0 1 1"/>
+  <link name="${prefix}base_link">
+    <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/Gripper_Palm_Shell_w_motor_v1.stl"/>
   </link>
 
-  <link name="coupler"/>
+  <link name="${prefix}coupler"/>
 
-  <link name="right_arm">
+  <link name="${prefix}right_arm">
     <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/gripper_right_arm.stl" color_rgba="0.0 0.5 1.0 1.0"/>
   </link>
 
-  <link name="left_arm">
+  <link name="${prefix}left_arm">
     <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/gripper_left_arm.stl" color_rgba="0.0 0.5 1.0 1.0"/>
   </link>
 
-  <link name="right_finger">
-    <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/gripper_right_finger.stl" color_rgba="0 0 1 1"/>
+  <link name="${prefix}right_finger">
+    <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/gripper_right_finger.stl"/>
   </link>
 
-  <link name="left_finger">
-    <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/gripper_left_finger.stl" color_rgba="0 0 1 1"/>
+  <link name="${prefix}left_finger">
+    <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/gripper_left_finger.stl"/>
   </link>
+
 
 
 </robot>

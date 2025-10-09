@@ -1,49 +1,88 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <!-- Joints -->
-  <joint name="gripper" type="revolute">
-    <parent link="base_link"/>
-    <child link="coupler"/>
+  <xacro:macro name="pinc_open_gripper" params="
+                name
+                prefix
+                use_mock_hardware:=^|false"
+  >
+
+  <!-- Include links and joints -->
+  <xacro:include filename="$(find pinc_open_driver)/urdf/gripper_links.xacro"/>
+
+   <!-- Joints -->
+  <joint name="${prefix}gripper" type="revolute">
+    <parent link="${prefix}base_link"/>
+    <child link="${prefix}coupler"/>
     <origin xyz="0.053492 0 0.0"/>
     <axis xyz="0 0 1"/>
     <limit lower="-2.44" upper="0" effort="5" velocity="1"/>
   </joint>
 
-  <joint name="base_link_to_right_arm" type="revolute">
-    <parent link="base_link"/>
-    <child link="right_arm"/>
+  <joint name="${prefix}base_link_to_right_arm" type="revolute">
+    <parent link="${prefix}base_link"/>
+    <child link="${prefix}right_arm"/>
     <origin xyz="0.053492 -0.03250 -0.008"/>
     <axis xyz="0 0 1"/>
     <limit lower="-1.22" upper="0" effort="5" velocity="1"/>
-    <mimic joint="gripper" multiplier="0.5" offset="0.0"/>
+    <mimic joint="${prefix}gripper" multiplier="0.5" offset="0.0"/>
   </joint>
 
-  <joint name="base_link_to_left_arm" type="revolute">
-    <parent link="base_link"/>
-    <child link="left_arm"/>
+  <joint name="${prefix}base_link_to_left_arm" type="revolute">
+    <parent link="${prefix}base_link"/>
+    <child link="${prefix}left_arm"/>
     <origin xyz="0.053492 0.03250 -0.008"/>
     <axis xyz="0 0 1"/>
     <limit lower="1.22" upper="0" effort="5" velocity="1"/>
-    <mimic joint="gripper" multiplier="-0.5" offset="0.0"/>
+    <mimic joint="${prefix}gripper" multiplier="-0.5" offset="0.0"/>
   </joint>
 
-  <joint name="right_arm_to_right_finger" type="revolute">
-    <parent link="right_arm"/>
-    <child link="right_finger"/>
+  <joint name="${prefix}right_arm_to_right_finger" type="revolute">
+    <parent link="${prefix}right_arm"/>
+    <child link="${prefix}right_finger"/>
     <origin xyz="0.034641 0.020 -0.0002"/>
     <axis xyz="0 0 1"/>
     <limit lower="1.22" upper="0" effort="5" velocity="1"/>
-    <mimic joint="gripper" multiplier="-0.5" offset="0.0"/>
+    <mimic joint="${prefix}gripper" multiplier="-0.5" offset="0.0"/>
   </joint>
 
-  <joint name="left_arm_to_left_finger" type="revolute">
-    <parent link="left_arm"/>
-    <child link="left_finger"/>
+  <joint name="${prefix}left_arm_to_left_finger" type="revolute">
+    <parent link="${prefix}left_arm"/>
+    <child link="${prefix}left_finger"/>
     <origin xyz="0.034641 -0.020 0.0002"/>
     <axis xyz="0 0 1"/>
     <limit lower="-1.22" upper="0" effort="5" velocity="1"/>
-    <mimic joint="gripper" multiplier="0.5" offset="0.0"/>
+    <mimic joint="${prefix}gripper" multiplier="0.5" offset="0.0"/>
   </joint>
+
+  <!-- ros2_control -->
+  <ros2_control name="${prefix}ros2_control" type="system">
+    <hardware>
+      <xacro:if value="${use_mock_hardware}">
+        <plugin>mock_components/GenericSystem</plugin>
+      </xacro:if>
+      <xacro:unless value="${use_mock_hardware}">
+        <plugin>pinc_open_driver/PincOpenDriver</plugin>
+        <param name="port">/dev/pinc-gripper</param>
+        <param name="baud_rate">1000000</param>
+        <param name="id">6</param>
+      </xacro:unless>
+    </hardware>
+
+    <joint name="${prefix}gripper">
+      <command_interface name="position">
+        <param name="min">-2.44</param>
+        <param name="max">0.0</param>
+      </command_interface>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+    </joint>
+  </ros2_control>
+
+  </xacro:macro>
 
 </robot>

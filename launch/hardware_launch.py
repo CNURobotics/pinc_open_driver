@@ -54,6 +54,7 @@ def generate_launch_description():
             ),
             " ",
             "use_mock_hardware:=false ",
+            "prefix:='pinc_open_' ",
         ]
     )
     robot_description = {"robot_description": robot_description_content}

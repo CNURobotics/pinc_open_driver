@@ -59,6 +59,8 @@ def generate_launch_description():
             PathJoinSubstitution(
                 [FindPackageShare("pinc_open_driver"), "urdf", "gripper.urdf.xacro"]
             ),
+            " ",
+            "prefix:='pinc_open_' ",
         ]
     )
     robot_description = {"robot_description": robot_description_content}

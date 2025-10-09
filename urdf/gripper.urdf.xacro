@@ -1,43 +1,16 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="test">
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="pinc_open">
   <xacro:arg name="use_mock_hardware" default="false" />
-  <xacro:arg name="mock_sensor_commands" default="false" />
-  <xacro:arg name="sim_gazebo" default="false" />
+  <xacro:arg name="prefix" default=""/>
 
-
-  <!-- Include links and joints -->
-  <xacro:include filename="gripper_links.xacro"/>
   <xacro:include filename="gripper_macros.xacro"/>
-  <!-- ros2_control -->
-  <ros2_control name="test" type="system">
-    <hardware>
-      <xacro:if value="$(arg use_mock_hardware)">
-        <plugin>mock_components/GenericSystem</plugin>
-      </xacro:if>
-      <xacro:unless value="$(arg use_mock_hardware)">
-        <plugin>pinc_open_driver/PincOpenDriver</plugin>
-        <param name="port">/dev/pinc-gripper</param>
-        <param name="baud_rate">1000000</param>
-        <param name="id">6</param>
-      </xacro:unless>
-    </hardware>
 
-    <joint name="gripper">
-      <command_interface name="position">
-        <param name="min">-2.44</param>
-        <param name="max">0.0</param>
-      </command_interface>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      
-    </joint>
-  </ros2_control>
+  <xacro:pinc_open_gripper
+    name="pinc_open"
+    use_mock_hardware="$(arg use_mock_hardware)"
+    prefix="$(arg prefix)" />
 
 </robot>
 
 
-    
+

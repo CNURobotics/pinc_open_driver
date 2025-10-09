@@ -3,9 +3,11 @@ Panels:
     Help Height: 70
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
-      Splitter Ratio: 0.5
-    Tree Height: 294
+      Expanded:
+        - /Global Options1
+        - /RobotModel1/Status1
+      Splitter Ratio: 0.3166666626930237
+    Tree Height: 320
   - Class: rviz_common/Views
     Expanded:
       - /Current View1
@@ -50,31 +52,31 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-        base_link:
+        pinc_open_base_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        coupler:
+        pinc_open_coupler:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        left_arm:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        left_finger:
+        pinc_open_left_arm:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        right_arm:
+        pinc_open_left_finger:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        right_finger:
+        pinc_open_right_arm:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        pinc_open_right_finger:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -106,7 +108,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: base_link
+    Fixed Frame: pinc_open_base_link
     Frame Rate: 30
   Name: root
   Tools:
@@ -118,35 +120,35 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 0.2992614209651947
+      Distance: 0.2558201551437378
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.060433242470026016
-        Y: -0.005667184945195913
-        Z: -0.0417826771736145
+        X: 0.03963518515229225
+        Y: -0.006935413461178541
+        Z: -0.03218952193856239
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.9799996018409729
+      Pitch: 0.9999996423721313
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.26182112097740173
+      Yaw: 0.40682077407836914
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 800
+  Height: 853
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000001c9000002c6fc0200000002fb000000100044006900730070006c006100790073010000003d000001a9000000c900fffffffb0000000a0056006900650077007301000001ec00000117000000a400ffffff000002e1000002c600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd000000010000000000000156000002f7fc0200000002fb000000100044006900730070006c006100790073010000003f000001c6000000cc00fffffffb0000000a00560069006500770073010000020b0000012b000000a900ffffff0000033b000002f700000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
     collapsed: false
-  Width: 1200
-  X: 409
-  Y: 150
+  Width: 1175
+  X: 2032
+  Y: 88
