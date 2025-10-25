@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>pinc_open_driver</name>
-  <version>0.0.0</version>
+  <version>0.0.1</version>
   <description>Pinc Open Gripper ROS2 Hardware Interface Driver</description>
   <author email="darryle.logan.20@cnu.edu">Darryle Logan Jr</author>
   <maintainer email="robotics@cnu.edu">David Conner</maintainer>
