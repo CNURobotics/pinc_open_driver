@@ -22,24 +22,66 @@
 
   <link name="${prefix}base_link">
     <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/Gripper_Palm_Shell_w_motor_v1.stl"/>
+
+    <!-- Simplified rectangular bounding box for palm and motor-->
+    <collision>
+      <origin xyz="0.029 0 0.0033" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.1 0.0323"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.024 0 0.03" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.048 0.025 0.025"/>
+      </geometry>
+    </collision>
   </link>
 
   <link name="${prefix}coupler"/>
 
   <link name="${prefix}right_arm">
     <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/gripper_right_arm.stl" color_rgba="${default_linkage_color_rgba}"/>
+    <collision>
+      <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
+      <geometry>
+        <!-- detailed mesh -->
+        <mesh filename="package://pinc_open_driver/meshes/gripper_right_arm.stl" scale="${mesh_scale}"/>
+      </geometry>
+    </collision>
   </link>
 
   <link name="${prefix}left_arm">
     <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/gripper_left_arm.stl" color_rgba="${default_linkage_color_rgba}"/>
+    <collision>
+      <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
+      <geometry>
+        <!-- detailed mesh -->
+        <mesh filename="package://pinc_open_driver/meshes/gripper_left_arm.stl" scale="${mesh_scale}" />
+      </geometry>
+    </collision>
   </link>
 
   <link name="${prefix}right_finger">
     <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/gripper_right_finger.stl" color_rgba="${default_tip_color_rgba}"/>
+    <collision>
+      <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
+      <geometry>
+        <!-- detailed mesh -->
+        <mesh filename="package://pinc_open_driver/meshes/gripper_right_finger.stl" scale="${mesh_scale}" />
+      </geometry>
+    </collision>
   </link>
 
   <link name="${prefix}left_finger">
     <xacro:visual_mesh mesh_file="package://pinc_open_driver/meshes/gripper_left_finger.stl" color_rgba="${default_tip_color_rgba}"/>
+    <collision>
+      <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
+      <geometry>
+        <!-- detailed mesh -->
+        <mesh filename="package://pinc_open_driver/meshes/gripper_left_finger.stl" scale="${mesh_scale}" />
+      </geometry>
+    </collision>
   </link>
 
 
