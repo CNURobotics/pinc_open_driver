@@ -4,7 +4,10 @@
   <xacro:macro name="pinc_open_gripper" params="
                 name
                 prefix
-                use_mock_hardware:=^|false"
+                use_mock_hardware:=^|false
+                default_color_rgba:='0 0 1. 1.'
+                default_linkage_color_rgba:='0 0.5 1.0 1.0'
+                default_tip_color_rgba:='0 0 1. 1.'"
   >
 
   <!-- Include links and joints -->
@@ -42,7 +45,7 @@
     <child link="${prefix}right_finger"/>
     <origin xyz="0.034641 0.020 -0.0002"/>
     <axis xyz="0 0 1"/>
-    <limit lower="1.22" upper="0" effort="5" velocity="1"/>
+    <limit lower="0" upper="1.22" effort="5" velocity="1"/>
     <mimic joint="${prefix}gripper" multiplier="-0.5" offset="0.0"/>
   </joint>
 

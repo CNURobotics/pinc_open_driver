@@ -55,6 +55,9 @@ def generate_launch_description():
             " ",
             "use_mock_hardware:=false ",
             "prefix:='pinc_open_' ",
+            "default_color_rgba:='0.0 0.0 1.0 1.0' ",
+            "default_linkage_color_rgba:='0 0.5 1.0 1.0' ",
+            "default_tip_color_rgba:='0.0 0.0 0.7 1.0' ",
         ]
     )
     robot_description = {"robot_description": robot_description_content}

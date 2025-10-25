@@ -2,13 +2,20 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="pinc_open">
   <xacro:arg name="use_mock_hardware" default="false" />
   <xacro:arg name="prefix" default=""/>
+  <xacro:arg name="default_color_rgba" default="0 0 1.0 1.0"/>
+  <xacro:arg name="default_linkage_color_rgba" default="0 0.5 1.0 1.0"/>
+  <xacro:arg name="default_tip_color_rgba" default="0 0.0 1.0 1.0"/>
 
   <xacro:include filename="gripper_macros.xacro"/>
 
   <xacro:pinc_open_gripper
     name="pinc_open"
     use_mock_hardware="$(arg use_mock_hardware)"
-    prefix="$(arg prefix)" />
+    prefix="$(arg prefix)"
+    default_color_rgba="$(arg default_color_rgba)"
+    default_linkage_color_rgba="$(arg default_linkage_color_rgba)"
+    default_tip_color_rgba="$(arg default_tip_color_rgba)"
+  />
 
 </robot>
 

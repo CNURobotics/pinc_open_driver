@@ -426,9 +426,9 @@ hardware_interface::return_type PincOpenDriver::write(
 
     // --- Clamp and convert position command ---
     double target_rads = std::clamp(hw_commands_pos[0],
-        joint_lower_["gripper"], joint_upper_["gripper"]);
+                                    joint_lower_[info_.joints[0].name], 
+                                    joint_upper_[info_.joints[0].name]);
     int raw_pos = 4095 * ((M_PI + target_rads) / (2*M_PI));
-
     raw_pos = std::clamp(raw_pos, 0, 4095);
 
     // --- Build Dynamixel packet for position write ---
