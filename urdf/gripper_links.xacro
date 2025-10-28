@@ -45,8 +45,8 @@
     <collision>
       <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
       <geometry>
-        <!-- detailed mesh -->
-        <mesh filename="package://pinc_open_driver/meshes/gripper_right_arm.stl" scale="${mesh_scale}"/>
+        <!-- simplified mesh -->
+        <mesh filename="package://pinc_open_driver/meshes/gripper_right_arm_simple.stl" scale="${mesh_scale}"/>
       </geometry>
     </collision>
   </link>
@@ -56,8 +56,8 @@
     <collision>
       <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
       <geometry>
-        <!-- detailed mesh -->
-        <mesh filename="package://pinc_open_driver/meshes/gripper_left_arm.stl" scale="${mesh_scale}" />
+        <!-- simplified mesh -->
+        <mesh filename="package://pinc_open_driver/meshes/gripper_left_arm_simple.stl" scale="${mesh_scale}" />
       </geometry>
     </collision>
   </link>
@@ -67,8 +67,8 @@
     <collision>
       <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
       <geometry>
-        <!-- detailed mesh -->
-        <mesh filename="package://pinc_open_driver/meshes/gripper_right_finger.stl" scale="${mesh_scale}" />
+        <!-- simplified mesh -->
+        <mesh filename="package://pinc_open_driver/meshes/gripper_right_finger_simple.stl" scale="${mesh_scale}" />
       </geometry>
     </collision>
   </link>
@@ -78,8 +78,8 @@
     <collision>
       <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
       <geometry>
-        <!-- detailed mesh -->
-        <mesh filename="package://pinc_open_driver/meshes/gripper_left_finger.stl" scale="${mesh_scale}" />
+        <!-- simplified mesh -->
+        <mesh filename="package://pinc_open_driver/meshes/gripper_left_finger_simple.stl" scale="${mesh_scale}" />
       </geometry>
     </collision>
   </link>
