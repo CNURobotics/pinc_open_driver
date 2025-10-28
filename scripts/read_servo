@@ -20,12 +20,13 @@ Read and display the ST3215/STS register parameters using Dynamixel v1-style pac
 Dependencies: pyserial
 """
 
-import serial
-print(serial.__file__)
-print(dir(serial))
 import argparse
+import math
+import serial
 import time
 from collections import OrderedDict
+
+print(f"Serial module : {serial.__file__}")
 
 # --- helpers for packet build/parse (Dynamixel v1 style) ---
 READ_INSTRUCTION = 0x02
@@ -183,10 +184,13 @@ def main():
                 disp = val
         # extra heuristic for position: display degrees (if value in single-turn range)
         if name in ("Present_pos", "Target_pos", "Min_angle", "Max_angle", "Position_correction"):
-            # ST3215 commonly uses 4096 steps/rev; only show degrees when in typical single-turn range
-            if isinstance(val, int) and abs(val) <= 0x0FFF:
-                deg = val * 360.0 / 4096.0
-                disp = f"{val} steps ({deg:.2f}°)"
+           if isinstance(val, int) and abs(val) <= 0x0FFF:
+                # Only show angle when in typical single-turn range
+                # ST3215 commonly uses 4096 steps/rev, but identifies 0 and 360
+                # Convert to -180 to +180 range
+                deg = val * 360.0 / 4095.0 - 180.
+                rad = val * (2 * math.pi)/4095.0 - math.pi
+                disp = f"{val} steps ({deg:6.2f}°, {rad:.3f} radians)"
         print(f"  0x{addr:02X} {name:20s} = {disp}    -- {desc}")
         results[name] = val
 
