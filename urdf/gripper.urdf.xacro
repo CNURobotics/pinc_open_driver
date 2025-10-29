@@ -5,6 +5,7 @@
   <xacro:arg name="default_color_rgba" default="0 0 1.0 1.0"/>
   <xacro:arg name="default_linkage_color_rgba" default="0 0.5 1.0 1.0"/>
   <xacro:arg name="default_tip_color_rgba" default="0 0.0 1.0 1.0"/>
+  <xacro:arg name="serial_port" default="/dev/pinc-gripper"/>
 
   <xacro:include filename="gripper_macros.xacro"/>
 
@@ -15,6 +16,7 @@
     default_color_rgba="$(arg default_color_rgba)"
     default_linkage_color_rgba="$(arg default_linkage_color_rgba)"
     default_tip_color_rgba="$(arg default_tip_color_rgba)"
+    serial_port="$(arg serial_port)"
   />
 
 </robot>

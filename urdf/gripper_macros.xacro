@@ -7,7 +7,8 @@
                 use_mock_hardware:=^|false
                 default_color_rgba:='0 0 1. 1.'
                 default_linkage_color_rgba:='0 0.5 1.0 1.0'
-                default_tip_color_rgba:='0 0 1. 1.'"
+                default_tip_color_rgba:='0 0 1. 1.'
+                serial_port:='/dev/pinc-gripper'"
   >
 
   <!-- Include links and joints -->
@@ -66,7 +67,7 @@
       </xacro:if>
       <xacro:unless value="${use_mock_hardware}">
         <plugin>pinc_open_driver/PincOpenDriver</plugin>
-        <param name="port">/dev/pinc-gripper</param>
+        <param name="port">${serial_port}</param>
         <param name="baud_rate">1000000</param>
         <param name="id">6</param>
       </xacro:unless>
