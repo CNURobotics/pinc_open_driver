@@ -12,111 +12,106 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Launch gripper controller manager with mock interface."""
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, RegisterEventHandler
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
+    """Generate launch description."""
     # Declare arguments
     declared_arguments = []
     declared_arguments.append(
         DeclareLaunchArgument(
-            "gui",
-            default_value="true",
-            description="Start RViz2 automatically with this launch file.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_mock_hardware",
-            default_value="false",
-            description="Start robot with mock hardware mirroring command to its states.",
+            'gui',
+            default_value='true',
+            description='Start RViz2 automatically with this launch file.',
         )
     )
 
     # Initialize Arguments
-    gui = LaunchConfiguration("gui")
-    use_mock_hardware = LaunchConfiguration("use_mock_hardware")
+    gui = LaunchConfiguration('gui')
 
     # Get URDF via xacro
     robot_description_content = Command(
         [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
-            " ",
+            PathJoinSubstitution([FindExecutable(name='xacro')]),
+            ' ',
             PathJoinSubstitution(
-                [FindPackageShare("pinc_open_driver"), "urdf", "gripper.urdf.xacro"]
+                [FindPackageShare('pinc_open_driver'), 'urdf', 'gripper.urdf.xacro']
             ),
-            " ",
-            "use_mock_hardware:=false ",
+            ' ',
+            'use_mock_hardware:=true ',
             "prefix:='pinc_open_' ",
-            "default_color_rgba:='0.0 0.0 1.0 1.0' ",
-            "default_linkage_color_rgba:='0 0.5 1.0 1.0' ",
-            "default_tip_color_rgba:='0.0 0.0 0.7 1.0' ",
-            "motor_id:='6' ",
-            "serial_port:='/dev/pinc-gripper' ",
         ]
     )
-    robot_description = {"robot_description": robot_description_content}
+    robot_description = {'robot_description': robot_description_content}
 
     robot_controllers = PathJoinSubstitution(
         [
-            FindPackageShare("pinc_open_driver"),
-            "config",
-            "pinc_open_driver.yaml",
+            FindPackageShare('pinc_open_driver'),
+            'config',
+            'pinc_open_driver.yaml',
         ]
     )
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("pinc_open_driver"), "rviz", "pinc_gripper.rviz"]
+        [FindPackageShare('pinc_open_driver'), 'rviz', 'pinc_gripper.rviz']
     )
+    # joint_limits = PathJoinSubstitution(
+    # [FindPackageShare('pinc_open_driver'), 'config', 'joint_limits.yaml']
+    # )
 
     control_node = Node(
-        package="controller_manager",
-        executable="ros2_control_node",
-        parameters=[robot_description,robot_controllers],
-        output="both",
+        package='controller_manager',
+        executable='ros2_control_node',
+        name='gripper_controller_manager',
+        parameters=[robot_description, robot_controllers],
+        output='both',
     )
     robot_state_pub_node = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        output="both",
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        output='both',
         parameters=[robot_description],
     )
     rviz_node = Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        output="log",
-        arguments=["-d", rviz_config_file],
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        output='log',
+        arguments=['-d', rviz_config_file],
         condition=IfCondition(gui),
     )
 
     joint_state_broadcaster_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["pinc_open_driver_joint_state_broadcaster"],
+        package='controller_manager',
+        executable='spawner',
+        arguments=[
+            'pinc_open_driver_joint_state_broadcaster',
+            '--controller-manager', '/gripper_controller_manager'],
     )
 
-    gripper_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
+    robot_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
         arguments=[
-            "pinc_open_driver_position_controller","--inactive",
-            "--controller-manager","/controller_manager"],
+            'pinc_open_driver_position_controller', '--inactive',
+            '--controller-manager', '/gripper_controller_manager'],
     )
     robot_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
+        package='controller_manager',
+        executable='spawner',
         arguments=[
-            "pinc_open_driver_trajectory_controller", # "--inactive",
-            "--controller-manager","/controller_manager"],
+            'pinc_open_driver_trajectory_controller',
+            '--controller-manager', '/gripper_controller_manager'],
     )
-
 
     # Delay rviz start after `joint_state_broadcaster`
     delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
@@ -138,7 +133,6 @@ def generate_launch_description():
     nodes = [
         control_node,
         robot_state_pub_node,
-        gripper_controller_spawner,
         robot_controller_spawner,
         delay_rviz_after_joint_state_broadcaster_spawner,
         delay_joint_state_broadcaster_after_robot_controller_spawner,

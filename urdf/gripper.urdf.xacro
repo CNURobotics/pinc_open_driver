@@ -5,21 +5,36 @@
   <xacro:arg name="default_color_rgba" default="0 0 1.0 1.0"/>
   <xacro:arg name="default_linkage_color_rgba" default="0 0.5 1.0 1.0"/>
   <xacro:arg name="default_tip_color_rgba" default="0 0.0 1.0 1.0"/>
-  <xacro:arg name="motor_id" default="6"/>
+  <xacro:arg name="baud_rate" default="1000000"/>
+  <xacro:arg name="comm_config_delay_ms" default="100"/>
   <xacro:arg name="serial_port" default="/dev/pinc-gripper"/>
+  <xacro:arg name="serial_timeout" default="50"/>
+  <xacro:arg name="servo_id" default="6"/>
 
   <xacro:include filename="gripper_macros.xacro"/>
+  <xacro:include filename="gripper_ros2_control.xacro"/>
 
   <xacro:pinc_open_gripper
+    name="pinc_open"
+    prefix="$(arg prefix)"
+    default_color_rgba="$(arg default_color_rgba)"
+    default_linkage_color_rgba="$(arg default_linkage_color_rgba)"
+    default_tip_color_rgba="$(arg default_tip_color_rgba)"
+  />
+  <xacro:pinc_open_ros2_control
     name="pinc_open"
     use_mock_hardware="$(arg use_mock_hardware)"
     prefix="$(arg prefix)"
     default_color_rgba="$(arg default_color_rgba)"
     default_linkage_color_rgba="$(arg default_linkage_color_rgba)"
     default_tip_color_rgba="$(arg default_tip_color_rgba)"
-    motor_id="$(arg motor_id)"
+    baud_rate="$(arg baud_rate)"
+    comm_config_delay_ms="$(arg comm_config_delay_ms)"
     serial_port="$(arg serial_port)"
+    serial_timeout="$(arg serial_timeout)"
+    servo_id="$(arg servo_id)"
   />
+
 
 </robot>
 

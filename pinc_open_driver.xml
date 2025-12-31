@@ -3,7 +3,7 @@
          type="pinc_open_driver::PincOpenDriver"
          base_class_type="hardware_interface::SystemInterface">
     <description>
-      Hardware Interface for Pinc Open Gripper 
+      Hardware Interface for PincOpen Gripper
     </description>
   </class>
 </library>

@@ -14,13 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import rclpy
-from rclpy.node import Node
+"""Read parameters from gripper."""
+
 from rcl_interfaces.srv import GetParameters
 
+import rclpy
+from rclpy.node import Node
+
+
 class ParameterChecker(Node):
+    """Gripper parameter checker."""
+
     def __init__(self, param_name):
-        super().__init__('parameter_checker')
+        super().__init__('get_params')
         self.param_name = param_name
 
     def check_all_nodes(self):
@@ -46,7 +52,7 @@ class ParameterChecker(Node):
 
             if future.result() is not None and future.result().values:
                 value = future.result().values[0]
-                print(f"{fq_node_name:<5s0} => {value}")
+                print(f'{fq_node_name:<5s} => {value}')
                 found_any = True
 
         if not found_any:
@@ -58,12 +64,13 @@ class ParameterChecker(Node):
             node_names.append((name, ns, enclave))
         return node_names
 
+
 def main():
     import sys
     if len(sys.argv) != 2:
-        print("Script retrieves ROS 2 parameter values from specified node.")
-        print("Usage: ros2 run pinc_hardware get_params <parameter_name>")
-        print("   e.g.:  ros2 run pinc_hardware get_params use_sim_time")
+        print('Script retrieves ROS 2 parameter values from specified node.')
+        print('Usage: ros2 run pinc_hardware get_params <parameter_name>')
+        print('   e.g.:  ros2 run pinc_hardware get_params use_sim_time')
         return
 
     param_name = sys.argv[1]
@@ -72,6 +79,7 @@ def main():
     node.check_all_nodes()
     node.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

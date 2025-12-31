@@ -14,15 +14,18 @@
 
 #ifndef PINC_OPEN_DRIVER__GRIPPER_HPP_
 #define PINC_OPEN_DRIVER__GRIPPER_HPP_
+#include <fcntl.h>
+#include <sys/poll.h>
 #include <termios.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <memory>
-#include <string>
-#include <vector>
-#include <numeric>
+
 #include <cmath>
+#include <memory>
+#include <numeric>
+#include <string>
 #include <unordered_map>
+#include <vector>
+
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/system_interface.hpp"
@@ -65,43 +68,60 @@ public:
   hardware_interface::return_type write(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
+  hardware_interface::CallbackReturn on_cleanup(
+    const rclcpp_lifecycle::State & previous_state) override;
+
+  hardware_interface::CallbackReturn on_shutdown(
+    const rclcpp_lifecycle::State & previous_state) override;
+
   // Additional functions
   void setTorque(bool on);  // Enable/disable servo torque
 
-  void sendInstruction(uint8_t instr, const std::vector<uint8_t> & params);
-
+  int32_t sendInstruction(uint8_t instr, const std::vector<uint8_t> & params);
 
 private:
+  // write packet to servo, return < 0 for error, or number of bytes written
+  int32_t write_all(const std::vector<uint8_t> & packet);
+
   // Get 2-byte data packet and return raw value
   // or -1 if invalid
-  int32_t get_data(const std::vector<uint8_t>& tx_request, uint8_t& error);
+  int32_t get_data(const std::vector<uint8_t> & tx_request, uint8_t & error, int32_t & raw_val);
+
   // Hardware parameters
   std::vector<double> hw_states_pos;  // Joint positions (radians)
   std::vector<double> hw_states_vel;
   std::vector<double> hw_states_eff;
-  std::vector<double> hw_commands_pos;    // Joint commands (radians)
+  std::vector<double> hw_commands_pos;  // Joint commands (radians)
   bool initialize_command_;
   // Comms setup
-  uint8_t id_ = 6;                    // Servo ID
-  std::string port_;
+  uint8_t servo_id_ = 6;  // Servo ID
+  std::string serial_port_;
   int SerialPort{-1};
+  struct pollfd polling
+  {
+  };
   std::vector<uint8_t> tx_posn_request;
-  std::vector<uint8_t> tx_vel_request;
-  std::vector<uint8_t> tx_load_request;
   std::vector<uint8_t> rx_buffer;
   speed_t baud_rate_termios_;  // Set for FeeTech servo
+  uint32_t comm_config_delay_ms_;
   std::chrono::milliseconds read_timeout_ms_;
   std::chrono::time_point<std::chrono::steady_clock> frame_start_;
   bool sim_mode_ = false;
-  double max_angle_ = 2*M_PI;
+  double max_angle_ = 2 * M_PI;
   double max_position_ = 4095.;
-  double rad_per_step_ = (2*M_PI/4096.);
+  double rad_per_step_ = (2 * M_PI / 4096.);
   double max_speed_ = 32767.;
   std::unordered_map<std::string, double> joint_lower_;
   std::unordered_map<std::string, double> joint_upper_;
   bool pos_read_done_ = false;
   bool second_request_done_ = false;
-  enum class ReadState {EMPTY = 0, GOT_POS = 0x1, GOT_VEL = 0x2, DONE = 0xF };
+  enum class ReadState
+  {
+    EMPTY = 0,
+    GOT_POS = 0x1,
+    GOT_VEL = 0x2,
+    DONE = 0x3
+  };
   uint8_t read_state_ = static_cast<uint8_t>(ReadState::EMPTY);
 };
 

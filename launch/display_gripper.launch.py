@@ -12,16 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Display gripper in RViz and allow joint motion."""
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
+    """Generate launch description."""
     # ---------------------------
     # Declare launch arguments
     # ---------------------------
@@ -29,72 +32,72 @@ def generate_launch_description():
 
     declared_arguments.append(
         DeclareLaunchArgument(
-            "gui",
-            default_value="true",
-            description="Start RViz2 automatically with this launch file.",
+            'gui',
+            default_value='true',
+            description='Start RViz2 automatically with this launch file.',
         )
     )
 
     declared_arguments.append(
         DeclareLaunchArgument(
-            "joint_state_publisher_gui",
-            default_value="true",
-            description="Start joint_state_publisher_gui for manual sliders.",
+            'joint_state_publisher_gui',
+            default_value='true',
+            description='Start joint_state_publisher_gui for manual sliders.',
         )
     )
 
     # ---------------------------
     # Launch configurations
     # ---------------------------
-    gui = LaunchConfiguration("gui")
-    joint_state_publisher_gui = LaunchConfiguration("joint_state_publisher_gui")
+    gui = LaunchConfiguration('gui')
+    joint_state_publisher_gui = LaunchConfiguration('joint_state_publisher_gui')
 
     # ---------------------------
     # Robot description (URDF via Xacro)
     # ---------------------------
     robot_description_content = Command(
         [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
-            " ",
+            PathJoinSubstitution([FindExecutable(name='xacro')]),
+            ' ',
             PathJoinSubstitution(
-                [FindPackageShare("pinc_open_driver"), "urdf", "gripper.urdf.xacro"]
+                [FindPackageShare('pinc_open_driver'), 'urdf', 'gripper.urdf.xacro']
             ),
-            " ",
+            ' ',
             "prefix:='pinc_open_' ",
         ]
     )
-    robot_description = {"robot_description": robot_description_content}
+    robot_description = {'robot_description': robot_description_content}
 
     # ---------------------------
     # RViz config file
     # ---------------------------
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("pinc_open_driver"), "rviz", "pinc_gripper.rviz"]
+        [FindPackageShare('pinc_open_driver'), 'rviz', 'pinc_gripper.rviz']
     )
 
     # ---------------------------
     # Nodes
     # ---------------------------
     robot_state_pub_node = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        output="both",
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        output='both',
         parameters=[robot_description],
     )
 
     rviz_node = Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        output="log",
-        arguments=["-d", rviz_config_file],
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        output='log',
+        arguments=['-d', rviz_config_file],
         condition=IfCondition(gui),
     )
 
     joint_state_publisher_gui_node = Node(
-        package="joint_state_publisher_gui",
-        executable="joint_state_publisher_gui",
-        name="joint_state_publisher_gui",
+        package='joint_state_publisher_gui',
+        executable='joint_state_publisher_gui',
+        name='joint_state_publisher_gui',
         condition=IfCondition(joint_state_publisher_gui),
     )
 

@@ -14,15 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import re
 import sys
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
+
 import numpy as np
-import os
+
 from pathlib import Path
 
-from collections import defaultdict
 from datetime import datetime
 
 color_patches = {
@@ -56,9 +58,11 @@ status_blocks = []   # (start_time, end_time, "STATUS")
 current_block_status = None
 current_block_start = 0.0
 
+
 # Helper: parse a line of joint values
 def parse_line(line):
     return [float(x) if x.strip() else None for x in data_re.findall(line)]
+
 
 # Main
 def parse_log(filename):
@@ -115,7 +119,8 @@ def parse_log(filename):
                     status = match.group(1)
                     status_changes.append((current_t, status))
                     if current_block_status != status:
-                        print(f"status changed from {current_block_status} to {status} at {current_t} ({current_t} {total_sec} {t0})")
+                        print(f"status changed from {current_block_status} to {status} at {current_t} "
+                              f"({current_t} {total_sec} {t0})")
                         status_blocks.append((current_block_start, current_t, current_block_status))
                         current_block_status = status
                         current_block_start = current_t
@@ -125,13 +130,15 @@ def parse_log(filename):
                 if match:
                     status = match.group(1)
                     if current_block_status != status:
-                        print(f"status changed from {current_block_status} to {status} at {current_t} ({total_sec} {t0})")
+                        print(f"status changed from {current_block_status} to {status} "
+                              f"at {current_t} ({total_sec} {t0})")
                         status_blocks.append((current_block_start, current_t, current_block_status))
                         current_block_status = status
                         current_block_start = current_t
 
         if current_block_status:
             status_blocks.append((current_block_start, data["time"][-1], current_block_status))
+
 
 def plot_data():
     fig, axes = plt.subplots(NUM_JOINTS, 2, figsize=(14, 12), sharex=True)
@@ -176,7 +183,9 @@ def plot_data():
         ax2.set_ylabel("Err (radians)", color='red')
         ax2.axhline(0, color='red', linewidth=0.5, linestyle='--', alpha=0.7)
         ax2.tick_params(axis='y', labelcolor='red')
-        ax2.plot(t_err[np.abs(scaled_err) > clip_bounds[1]], np.clip(scaled_err[np.abs(scaled_err) > clip_bounds[1]], *clip_bounds), 'r.', linewidth=2)
+        ax2.plot(t_err[np.abs(scaled_err) > clip_bounds[1]],
+                 np.clip(scaled_err[np.abs(scaled_err) > clip_bounds[1]], *clip_bounds),
+                 'r.', linewidth=2)
 
         # Velocity
         axes[i][1].plot(t, data["vel_ref"][i], label='Ref', linestyle='--')
@@ -211,6 +220,7 @@ def plot_data():
 
     plt.show()
 
+
 def get_last_log_file():
     workspace_root = os.environ.get("WORKSPACE_ROOT")
     if not workspace_root:
@@ -235,6 +245,7 @@ def get_last_log_file():
         latest_log_file = max(timestamped_files, key=lambda x: x[0])[1]
         print(f"Latest log file: {latest_log_file}")
         return latest_log_file
+
 
 if __name__ == "__main__":
     fpath = None

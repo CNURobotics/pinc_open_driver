@@ -4,12 +4,10 @@
   <xacro:macro name="pinc_open_gripper" params="
                 name
                 prefix
-                use_mock_hardware:=^|false
                 default_color_rgba:='0 0 1. 1.'
                 default_linkage_color_rgba:='0 0.5 1.0 1.0'
                 default_tip_color_rgba:='0 0 1. 1.'
-                motor_id:='6'
-                serial_port:='/dev/pinc-gripper'"
+                "
   >
 
   <!-- Include links and joints -->
@@ -59,35 +57,6 @@
     <limit lower="-1.22" upper="0" effort="5" velocity="1"/>
     <mimic joint="${prefix}gripper" multiplier="0.5" offset="0.0"/>
   </joint>
-
-  <!-- ros2_control -->
-  <ros2_control name="${prefix}ros2_control" type="system">
-    <hardware>
-      <xacro:if value="${use_mock_hardware}">
-        <plugin>mock_components/GenericSystem</plugin>
-      </xacro:if>
-      <xacro:unless value="${use_mock_hardware}">
-        <plugin>pinc_open_driver/PincOpenDriver</plugin>
-        <param name="port">${serial_port}</param>
-        <param name="baud_rate">1000000</param>
-        <param name="id">${motor_id}</param>
-      </xacro:unless>
-    </hardware>
-
-    <joint name="${prefix}gripper">
-      <command_interface name="position">
-        <param name="min">-2.44</param>
-        <param name="max">0.0</param>
-      </command_interface>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-    </joint>
-  </ros2_control>
-
   </xacro:macro>
 
 </robot>

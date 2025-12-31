@@ -1,4 +1,4 @@
-# Contributing to the Pinc Open Gripper Driver ROS 2 Package
+# Contributing to the PincOpen Gripper Driver ROS 2 Package
 
 Thank you for considering contributing!
 
@@ -9,6 +9,6 @@ Thank you for considering contributing!
 
 ## License
 All contributions to this project will be licensed under the
- [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+ [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
 By submitting a pull request, you agree that your contribution will be released under the Apache 2.0 license.

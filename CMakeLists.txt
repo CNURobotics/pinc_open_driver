@@ -19,10 +19,12 @@ include_directories(
 add_library(${PROJECT_NAME} SHARED
   src/gripper.cpp
 )
-ament_target_dependencies(${PROJECT_NAME}
-  rclcpp
-  hardware_interface
-  pluginlib
+
+target_link_libraries(${PROJECT_NAME} PUBLIC
+  hardware_interface::hardware_interface
+  hardware_interface::mock_components
+  pluginlib::pluginlib
+  rclcpp::rclcpp
 )
 
 # Export plugin description
@@ -33,13 +35,14 @@ install(
   DIRECTORY launch meshes rviz urdf config  src
   DESTINATION share/${PROJECT_NAME}
 )
-
+# Install the executable to lib/<package_name>
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
 install(PROGRAMS
+  scripts/flash_test_gripper
   scripts/get_params
   scripts/pinc_open_driver_control_gui
   scripts/pinc_open_driver_monitor

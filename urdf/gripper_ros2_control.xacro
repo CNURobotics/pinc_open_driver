@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="pinc_open_ros2_control" params="
+                name
+                prefix
+                use_mock_hardware:=^|false
+                default_color_rgba:='0 0 1. 1.'
+                default_linkage_color_rgba:='0 0.5 1.0 1.0'
+                default_tip_color_rgba:='0 0 1. 1.'
+                baud_rate='1000000'
+                comm_config_delay_ms='100'
+                serial_port:='/dev/pinc-gripper'
+                serial_timeout='20'
+                servo_id:='6'"
+  >
+  <!-- ros2_control -->
+  <ros2_control name="${prefix}ros2_control_hw_interface" type="system">
+    <hardware>
+      <xacro:if value="${use_mock_hardware}">
+        <plugin>mock_components/GenericSystem</plugin>
+      </xacro:if>
+      <xacro:unless value="${use_mock_hardware}">
+        <plugin>pinc_open_driver/PincOpenDriver</plugin>
+        <param name="baud_rate">${baud_rate}</param>
+        <param name="comm_config_delay_ms">${comm_config_delay_ms}</param>
+        <param name="servo_id">${servo_id}</param>
+        <param name="serial_port">${serial_port}</param>
+        <param name="serial_timeout">${serial_timeout}</param>
+      </xacro:unless>
+    </hardware>
+
+    <joint name="${prefix}gripper">
+      <command_interface name="position">
+        <param name="min">-2.44</param>
+        <param name="max">0.0</param>
+      </command_interface>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+    </joint>
+  </ros2_control>
+
+  </xacro:macro>
+
+</robot>
