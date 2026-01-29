@@ -132,4 +132,9 @@ A few simplified logging and plotting scripts are available for use during testi
 > Note: These basic helper scripts currently have hard coded topic names, and may need to be modified for your use case.
 
 
+## Publications
+
+Please use the following publications for reference when using PincOpen Driver:
+
+- D. K. Logan, I. G. Conner, and D. C. Conner, "ROS 2 Hardware Interface for the PincOpen Gripper",  IEEE SoutheastCon 2026, Huntsville, AL, USA, 2026, to appear.
 
